@@ -4,12 +4,13 @@ import { Customer } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const customer = db
       .prepare('SELECT * FROM customers WHERE id = ?')
-      .get(params.id) as Customer | undefined;
+      .get(id) as Customer | undefined;
 
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { Campaign, Customer, Communication } from '@/lib/types';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
+import { buildSegmentQuery } from '@/lib/segments';
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
 async function sendCampaign(campaign_id: string) {
   try {
     const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaign_id) as Campaign;
-    const segment = db.prepare('SELECT criteria FROM segments WHERE id = ?').get(campaign.segment_id) as any;
+    const segment = db.prepare('SELECT criteria FROM segments WHERE id = ?').get(campaign.segment_id) as { criteria: string };
 
     // Get customers in segment
     const { query, params } = buildSegmentQuery(JSON.parse(segment.criteria));
@@ -93,7 +94,7 @@ async function sendCampaign(campaign_id: string) {
     const now = new Date().toISOString();
     const communications = customers.map(customer => {
       const comm_id = randomUUID();
-      const message = campaign.message_template.replace('{name}', customer.name);
+      const message = campaign.message_template.replace(/\{name\}/g, customer.name);
 
       db.prepare(
         'INSERT INTO communications (id, campaign_id, customer_id, message, channel, status, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -130,47 +131,6 @@ async function sendCampaign(campaign_id: string) {
     console.error('Error sending campaign:', error);
     throw error;
   }
-}
-
-function buildSegmentQuery(criteria: any) {
-  let query = 'SELECT * FROM customers WHERE 1=1';
-  const params: any[] = [];
-
-  if (criteria.tier && criteria.tier.length > 0) {
-    const placeholders = criteria.tier.map(() => '?').join(',');
-    query += ` AND tier IN (${placeholders})`;
-    params.push(...criteria.tier);
-  }
-
-  if (criteria.minSpend !== undefined) {
-    query += ' AND total_spend >= ?';
-    params.push(criteria.minSpend);
-  }
-
-  if (criteria.maxSpend !== undefined) {
-    query += ' AND total_spend <= ?';
-    params.push(criteria.maxSpend);
-  }
-
-  if (criteria.daysSinceLastPurchase !== undefined) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - criteria.daysSinceLastPurchase);
-    query += ' AND last_purchase_date < ?';
-    params.push(cutoffDate.toISOString());
-  }
-
-  if (criteria.neverPurchased === true) {
-    query += ' AND last_purchase_date IS NULL';
-  }
-
-  if (criteria.active === true) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30);
-    query += ' AND last_purchase_date >= ?';
-    params.push(cutoffDate.toISOString());
-  }
-
-  return { query, params };
 }
 
 function getCampaignStats(campaign_id: string) {

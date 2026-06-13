@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(id) as Customer;
 
     return NextResponse.json(customer, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating customer:', error);
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return NextResponse.json(
         { error: 'Customer with this email or phone already exists' },
         { status: 409 }

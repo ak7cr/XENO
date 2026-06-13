@@ -1,309 +1,159 @@
-# XENO Mini CRM - AI-Native Customer Engagement Platform
+# Xeno CRM
 
-## Overview
+An AI-native mini CRM for reaching shoppers — segment your customer base, send
+personalised campaigns across Email, SMS, WhatsApp and RCS, and track delivery
+performance through a fully simulated, callback-driven channel loop.
 
-XENO Mini CRM is an AI-native customer engagement platform that helps brands intelligently reach their shoppers. The system enables marketers to:
+Built for the Xeno engineering take-home assignment.
 
-- **Ingest customer data** - Store customers and their purchase history
-- **Segment audiences** - Create intelligent segments based on behavior and attributes
-- **Send personalized messages** - Dispatch tailored communications across WhatsApp, SMS, Email, and RCS
-- **Track performance** - Monitor delivery, engagement, and conversion metrics
+## What it does
+
+- **Ingest data** — customers and their orders are stored in SQLite, with
+  customers auto-tiered (bronze/silver/gold) based on lifetime spend.
+- **Segment shoppers** — build audiences from tier, spend, recency and
+  activity criteria, with a live "N customers match" preview, or ask the
+  **AI segment assistant** to draft a segment for a marketing goal
+  (re-engagement, growth, retention, churn-prevention, launch).
+- **Send personalised communications** — compose a message template (with
+  `{name}` personalisation), optionally **generate message copy and a channel
+  recommendation with AI**, and send to every customer in a segment.
+- **Surface performance insights** — a dedicated Insights view shows
+  sent/delivered/opened/clicked totals at the campaign level and rolled up by
+  audience (segment), plus a live activity log of individual communications.
 
 ## Architecture
 
-The system consists of two main services working together:
-
-### 1. **CRM Service** (Next.js)
-- Full-stack web application built with Next.js, React, and Tailwind CSS
-- Backend: RESTful API using Next.js API Routes
-- Database: SQLite for data persistence
-- Frontend: Interactive dashboard for campaign management
-
-**Key Endpoints:**
-- `POST /api/seed` - Create demo data
-- `GET/POST /api/customers` - Customer management
-- `GET/POST /api/orders` - Order tracking
-- `GET/POST /api/segments` - Audience segmentation
-- `GET/POST /api/campaigns` - Campaign management
-- `GET/POST /api/communications` - Communication tracking
-- `POST /api/communications/callback` - Receive delivery updates
-- `POST /api/ai/suggest` - AI-powered suggestions
-
-### 2. **Channel Service** (Node.js Express)
-- Separate microservice for message delivery simulation
-- Receives communications from CRM
-- Simulates delivery outcomes (delivered, failed, opened, read, clicked)
-- Calls back to CRM with status updates
-
-**Key Endpoints:**
-- `GET /health` - Service health check
-- `POST /api/send` - Receive and process communications
-- `GET /api/communications/:id` - Check communication status
-
-## Two-Service, Callback-Driven Architecture
-
-The assignment emphasizes modeling the **full lifecycle** of a communication:
+Two services, communicating only over HTTP — the callback-driven loop the
+assignment calls out explicitly:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    CRM Service                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │  Campaign Created                                  │ │
-│  │  (e.g., "20% off for inactive gold customers")   │ │
-│  └────────────────────────────────────────────────────┘ │
-│                         │                                │
-│                         ▼                                │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │  Send API: POST /api/campaigns                     │ │
-│  │  Calls Channel Service with message details       │ │
-│  └────────────────────────────────────────────────────┘ │
-└──────────────────────────┬────────────────────────────────┘
-                           │
-                           ▼
-              ┌──────────────────────────┐
-              │   Channel Service        │
-              │  (Delivery Simulator)    │
-              ├──────────────────────────┤
-              │ - Receives messages      │
-              │ - Simulates outcomes:    │
-              │   • delivered (80%)      │
-              │   • failed (20%)         │
-              │   • opened (40%)         │
-              │   • read (25%)           │
-              │   • clicked (10%)        │
-              │ - Schedules callbacks    │
-              └──────────────┬───────────┘
-                             │
-                             ▼
-┌────────────────────────────────────────────────────────┐
-│  CRM Callback API: POST /api/communications/callback  │
-│  Updates communication status in database              │
-│  Dashboard reflects real-time metrics                  │
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────┐        POST /api/send         ┌──────────────────────┐
+│        Xeno CRM          │ ─────────────────────────────▶ │   Channel Service     │
+│  (Next.js, app router)   │                                 │  (Express, stateless) │
+│                          │                                 │                       │
+│  • SQLite (customers,    │ ◀───────────────────────────── │  Simulates delivery,  │
+│    orders, segments,     │   POST /api/communications/    │  open, read, click,   │
+│    campaigns, comms)     │        callback (async)        │  failure with random  │
+│  • AI suggest endpoint   │                                 │  delays per message    │
+└─────────────────────────┘                                 └──────────────────────┘
 ```
 
-## AI-Native Features
+1. Creating a campaign with `send_now: true` resolves the target segment to a
+   list of customers, writes one `communications` row per recipient (status
+   `sent`), and POSTs the batch to the channel service.
+2. The channel service does **not** deliver anything — for each message it
+   randomly schedules a sequence of outcomes (delivered → opened → read →
+   clicked, or failed) with realistic delays and probabilities, then calls
+   back into the CRM's `/api/communications/callback` endpoint.
+3. The CRM updates each communication's status/timestamps idempotently.
+   Campaign and audience-level stats (`/api/campaigns`, `/api/segments`,
+   Insights page) are computed on read, so the dashboard reflects the latest
+   state without polling the channel service.
 
-### 1. **Smart Segmentation**
-- Create segments using natural criteria (tier, spend, purchase recency)
-- Backend logic automatically matches customers to segments
-- Demonstrates AI thinking: segmentation logic could be extended to predictive scoring
+## AI-native surface area
 
-### 2. **Message Generation Suggestions**
-- `POST /api/ai/suggest?type=message`
-- Returns contextual message templates based on segment type
-- Examples: re-engagement for inactive customers, loyalty offers for gold customers
+AI is wired into the product at the two points marketers actually get stuck:
 
-### 3. **Channel Recommendations**
-- `POST /api/ai/suggest?type=channel`
-- Recommends optimal channel based on message length and audience
-- SMS for short messages, Email for longer content
+- **"What audience should I target?"** — the Segments page has an AI
+  assistant that takes a goal and proposes a segment name + criteria, which
+  the marketer can review, tweak (with a live match-count preview) and save.
+- **"What should I say, and where?"** — the Campaigns form can generate
+  message copy tailored to the selected audience, and recommend a channel
+  based on the drafted message.
 
-### 4. **Segment Suggestions**
-- `POST /api/ai/suggest?type=segment`
-- Recommends pre-built segments based on marketing goal
-- Goals: re-engagement, growth, retention, churn-prevention, launch
+The suggestion logic lives behind a single `POST /api/ai/suggest` endpoint
+(`type: segment | message | channel`). It currently runs on deterministic,
+rule-based heuristics so the demo works with zero API keys and zero latency —
+the endpoint is the seam where a real LLM call (the `openai`/Anthropic SDKs)
+would slot in without changing the UI.
 
-## Data Model
+## Tech stack
 
-### Customers
-- Auto-tiered based on lifetime spend (bronze < $100, silver < $1000, gold ≥ $1000)
-- Tracks purchase history and engagement metrics
+- **Frontend/Backend**: Next.js (App Router) + React + TypeScript + Tailwind CSS v4
+- **Database**: SQLite via `better-sqlite3`
+- **Channel service**: standalone Node.js/Express app
+- **Dark mode**: class-based Tailwind dark variant, toggle persisted to `localStorage`
 
-### Segments
-- Flexible criteria-based filtering
-- Supports: tier, spend ranges, purchase recency, activity status
-
-### Campaigns
-- Multi-channel support: Email, SMS, WhatsApp, RCS
-- Message personalization with {name} variables
-- Real-time analytics (sent, delivered, opened, clicked)
-
-### Communications
-- Full lifecycle tracking from send to click
-- Timestamps for each event (sent_at, delivered_at, opened_at, read_at, clicked_at)
-- Status tracking: pending → sent → delivered → opened → read → clicked
-
-## Demo Data
-
-Run `POST /api/seed` to create a coffee chain demo with:
-- 10 customers across tiers
-- 50 orders with realistic purchase patterns
-- 3 pre-built segments
-- Sample campaign data
-
-## Deployment
-
-### Environment Variables
+## Project structure
 
 ```
-CHANNEL_SERVICE_URL=http://localhost:3001  # For local development
-NEXT_PUBLIC_APP_URL=http://localhost:3000  # Public app URL for callbacks
+crm/
+  app/
+    page.tsx                 # Dashboard (stats, funnel, tier breakdown)
+    customers/page.tsx        # Customer list + order history
+    segments/page.tsx         # Segment builder + AI assistant
+    campaigns/page.tsx        # Campaign composer + AI copy/channel suggestions
+    insights/page.tsx         # Campaign & audience performance, activity log
+    api/
+      customers/               # GET/POST customers, GET by id
+      orders/                   # GET/POST orders (updates spend + tier)
+      segments/                 # CRUD + /preview (live match count)
+      campaigns/                # CRUD + send-to-segment
+      communications/           # list + /callback (receipt API)
+      ai/suggest/               # segment / message / channel suggestions
+      stats/                    # dashboard aggregates
+      seed/                     # demo data generator
+  components/                  # Sidebar/app shell, theme toggle, UI primitives, icons
+  lib/
+    db.ts                      # SQLite connection + schema
+    segments.ts                # shared segment-criteria → SQL builder
+    theme-provider.tsx          # dark mode context
+    types.ts                    # shared TypeScript types
+
+channel-service/
+  server.js                    # stubbed channel: /api/send + delivery simulation
 ```
 
-### Running Locally
+## Data model
+
+```
+customers   (id, email, phone, name, tier, total_spend, last_purchase_date, created_at)
+orders      (id, customer_id, product_name, amount, date)
+segments    (id, name, criteria JSON, customer_count, created_at)
+campaigns   (id, segment_id, name, message_template, channel, status, created_at, sent_at)
+communications (id, campaign_id, customer_id, message, channel, status,
+                 sent_at, delivered_at, opened_at, read_at, clicked_at)
+```
+
+`segments.customer_count` is recomputed on every read from the live
+`customers` table, so counts stay accurate as data changes — it's stored
+purely as a cache of the value at creation time.
+
+## Running locally
 
 ```bash
-# Install CRM dependencies
+# Terminal 1 — CRM
 cd crm
 npm install
-
-# Start CRM development server
+echo "CHANNEL_SERVICE_URL=http://localhost:3001" > .env.local
+echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> .env.local
 npm run dev
 
-# In another terminal, install and start channel service
-cd ../channel-service
-npm install
-npm start
-
-# Open http://localhost:3000
-```
-
-### Production Deployment
-
-**CRM Service (Vercel/Railway):**
-```bash
-# Deploy Next.js app
-cd crm
-npm run build
-npm start
-```
-
-**Channel Service (Railway/Render):**
-```bash
+# Terminal 2 — Channel service
 cd channel-service
 npm install
 npm start
 ```
 
-## Key Design Decisions
+Open http://localhost:3000, then use the "Load demo data" button on the
+dashboard to seed a sample shopper base.
 
-### 1. **SQLite for Data Persistence**
-- Simple, file-based database
-- No external dependencies (great for demo)
-- Easily replaceable with PostgreSQL for production
+## Scale assumptions & tradeoffs
 
-### 2. **Separate Channel Service**
-- Models real-world architecture where delivery and engagement are handled separately
-- Demonstrates async callback-driven communication
-- Shows understanding of distributed systems and eventual consistency
+- **SQLite** keeps the demo self-contained with zero external infra. At real
+  scale this becomes Postgres (the query layer is a thin SQL builder in
+  `lib/segments.ts`, deliberately kept swap-friendly), with the channel
+  service backed by a queue (e.g. SQS/BullMQ) instead of `setTimeout`-based
+  scheduling.
+- **Synchronous segment resolution on send** is fine for hundreds–low
+  thousands of recipients. At higher volume, campaign sends would be
+  paginated/batched into the queue rather than resolved in one request.
+- **Callbacks are idempotent updates keyed by `communication_id`** — safe to
+  retry. A production version would add callback signature verification and
+  a dead-letter path for repeated failures.
+- **AI suggestions are rule-based** by design for this scope (no API keys,
+  instant, deterministic for demo purposes), with the suggestion logic
+  isolated behind one endpoint so it can be swapped for an LLM call.
 
-### 3. **Callback-Driven Status Updates**
-- Channel service simulates realistic delivery delays (1-30 seconds)
-- Different event probabilities match real-world messaging behavior
-- CRM updates its own database from callbacks, not polling
-
-### 4. **AI Without External APIs**
-- Uses pattern-based suggestions instead of expensive API calls
-- Demonstrates product thinking about AI integration
-- Ready to swap in OpenAI API or Claude without changing architecture
-
-## Code Quality & Structure
-
-```
-crm/
-  ├── app/
-  │   ├── api/                    # API routes
-  │   │   ├── customers/          # Customer management
-  │   │   ├── orders/             # Order tracking
-  │   │   ├── segments/           # Segmentation
-  │   │   ├── campaigns/          # Campaign management
-  │   │   ├── communications/     # Communication tracking & callbacks
-  │   │   ├── ai/                 # AI suggestions
-  │   │   └── seed/               # Demo data
-  │   └── page.tsx                # Main dashboard UI
-  ├── lib/
-  │   ├── db.ts                   # Database initialization & schema
-  │   └── types.ts                # TypeScript types
-  └── package.json
-
-channel-service/
-  ├── server.js                   # Express server
-  └── package.json
-```
-
-## Testing the System
-
-### 1. Seed Demo Data
-```
-POST /api/seed
-```
-
-### 2. Create a Segment
-```
-POST /api/segments
-{
-  "name": "Inactive Gold Customers",
-  "criteria": {
-    "tier": ["gold"],
-    "daysSinceLastPurchase": 30
-  }
-}
-```
-
-### 3. Create and Send a Campaign
-```
-POST /api/campaigns
-{
-  "segment_id": "...",
-  "name": "Re-engagement Campaign",
-  "message_template": "Hi {name}! We miss you. Here's 20% off: CODE20",
-  "channel": "email",
-  "send_now": true
-}
-```
-
-### 4. Monitor Communications
-- Check the Campaigns tab to see:
-  - Real-time delivery status
-  - Open rates
-  - Click rates
-  - Performance metrics updating as callbacks arrive
-
-## System Thinking Highlights
-
-### Volume & Ordering
-- Each campaign can handle 1000+ communications
-- Communications are processed asynchronously
-- Status updates are idempotent (safe to retry)
-
-### Retries & Failures
-- Channel service simulates 20% failure rate
-- Failures are tracked and visible in analytics
-- Could add exponential backoff for production
-
-### Ordering
-- Callbacks processed in order received
-- Database transactions ensure consistency
-- Could add ordered processing if needed
-
-## Future Enhancements
-
-1. **Real AI Integration** - Swap pattern-based suggestions for OpenAI API
-2. **Advanced Analytics** - Cohort analysis, A/B testing, attribution
-3. **Real Channel Integration** - Connect to actual SMS, email, WhatsApp providers
-4. **User Management** - Multi-user support with role-based access
-5. **Scheduled Campaigns** - Send campaigns at optimal times
-6. **Preference Centers** - Let customers manage communication preferences
-7. **Dynamic Segmentation** - Real-time segment updates based on behavior
-
-## Evaluation Criteria Coverage
-
-✅ **Build & Deploy** - Live product with working UI and API
-✅ **Creativity in Scoping** - Bold choice to focus on coffee chain + realistic system design  
-✅ **AI-Native Development** - AI-powered segmentation, message suggestions, channel recommendations
-✅ **Code Quality** - Clean structure, TypeScript, proper error handling
-✅ **System Design** - Two-service architecture with async callbacks, demonstrating distributed system thinking
-✅ **Thought Clarity** - Clear decisions documented, trade-offs explained
-
-## Walkthrough Video Structure (~6 minutes)
-
-1. **Product Intro** (0:30) - What problem we're solving for coffee chain
-2. **Functional Demo** (1:30) - Create segment, send campaign, watch real-time updates
-3. **Architecture** (1:00) - Diagram showing CRM + Channel Service callback flow
-4. **Code Walkthrough** (1:00) - Key API endpoint showing callback pattern
-5. **AI-Native Workflow** (1:00) - Show AI suggestions and system design choices
-
----
-
-Built with ❤️ for XENO
+See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment options and production
+database notes.

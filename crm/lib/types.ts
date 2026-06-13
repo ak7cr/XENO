@@ -1,3 +1,5 @@
+import { SegmentCriteria } from './segments';
+
 // Database types for the CRM
 export interface Customer {
   id: string;
@@ -21,7 +23,7 @@ export interface Order {
 export interface Segment {
   id: string;
   name: string;
-  criteria: Record<string, any>;
+  criteria: SegmentCriteria;
   customer_count: number;
   created_at: string;
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SegmentCriteria } from '@/lib/segments';
 
 // AI endpoint for generating messages
 export async function POST(request: NextRequest) {
@@ -17,8 +18,8 @@ export async function POST(request: NextRequest) {
     // In production, this would call OpenAI API
 
     if (type === 'message') {
-      const { segment_name, brand_name, product } = context;
-      const suggestions = generateMessageSuggestions(segment_name, brand_name, product);
+      const { segment_name } = context;
+      const suggestions = generateMessageSuggestions(segment_name);
       return NextResponse.json({ suggestions });
     }
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function generateMessageSuggestions(segment: string, brand: string, product: string) {
+function generateMessageSuggestions(segment: string) {
   const suggestions: Record<string, string[]> = {
     'high-value-inactive': [
       `Hey {name}! ☕ We miss you! Enjoy 20% off your next {product} order. Use code: COMEBACK20`,
@@ -81,7 +82,7 @@ function recommendChannel(audienceType: string, messageLength: number) {
 }
 
 function sugmentSuggestions(goal: string) {
-  const suggestions: Record<string, any> = {
+  const suggestions: Record<string, { name: string; criteria: SegmentCriteria }> = {
     're-engagement': {
       name: 'Inactive High-Value Customers',
       criteria: {

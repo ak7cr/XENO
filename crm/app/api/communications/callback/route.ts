@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Update communication status
     const updates: string[] = ['status = ?'];
-    const params: any[] = [status];
+    const params: string[] = [status];
 
     if (delivered_at) {
       updates.push('delivered_at = ?');

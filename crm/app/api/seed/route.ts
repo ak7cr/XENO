@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { randomUUID } from 'crypto';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Clear existing data
     db.exec('DELETE FROM communications; DELETE FROM campaigns; DELETE FROM segments; DELETE FROM orders; DELETE FROM customers;');
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Create demo orders
     const products = ['Espresso', 'Latte', 'Cappuccino', 'Americano', 'Macchiato', 'Mocha'];
-    customerIds.forEach((customerId, i) => {
+    customerIds.forEach((customerId) => {
       const orderCount = Math.floor(Math.random() * 10) + 1;
       let totalSpend = 0;
       let lastPurchaseDate = '';

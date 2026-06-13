@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     let query = 'SELECT * FROM communications WHERE 1=1';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (campaign_id) {
       query += ' AND campaign_id = ?';
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const communications = db.prepare(query).all(...params) as Communication[];
 
     let countQuery = 'SELECT COUNT(*) as count FROM communications WHERE 1=1';
-    const countParams: any[] = [];
+    const countParams: string[] = [];
     if (campaign_id) {
       countQuery += ' AND campaign_id = ?';
       countParams.push(campaign_id);
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Create communications
     for (const comm of communications) {
-      const { id, campaign_id, customer_id, message, channel, recipient } = comm;
+      const { id, campaign_id, customer_id, message, channel } = comm;
       const now = new Date().toISOString();
 
       db.prepare(

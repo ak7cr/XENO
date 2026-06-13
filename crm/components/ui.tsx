@@ -1,0 +1,184 @@
+import type { ReactNode } from 'react';
+
+export function Card({ className = '', children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function PageHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50 tracking-tight">{title}</h1>
+        {description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  className = '',
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md';
+}) {
+  const variants: Record<string, string> = {
+    primary:
+      'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm disabled:bg-indigo-400/60',
+    secondary:
+      'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100',
+    ghost:
+      'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300',
+    danger:
+      'bg-rose-600 hover:bg-rose-500 text-white shadow-sm disabled:bg-rose-400/60',
+  };
+  const sizes: Record<string, string> = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2.5 text-sm',
+  };
+
+  return (
+    <button
+      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${sizes[size]} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TIER_STYLES: Record<string, string> = {
+  gold: 'bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300',
+  silver: 'bg-slate-200 text-slate-700 dark:bg-slate-400/10 dark:text-slate-300',
+  bronze: 'bg-orange-100 text-orange-800 dark:bg-orange-400/10 dark:text-orange-300',
+};
+
+export function TierBadge({ tier }: { tier: string }) {
+  return (
+    <span className={`px-2 py-1 rounded-md text-xs font-semibold ${TIER_STYLES[tier] || TIER_STYLES.bronze}`}>
+      {tier.toUpperCase()}
+    </span>
+  );
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  sent: 'bg-blue-100 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300',
+  draft: 'bg-slate-200 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300',
+  scheduled: 'bg-purple-100 text-purple-700 dark:bg-purple-400/10 dark:text-purple-300',
+  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300',
+  delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300',
+  failed: 'bg-rose-100 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300',
+  pending: 'bg-slate-200 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300',
+  opened: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300',
+  read: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300',
+  clicked: 'bg-violet-100 text-violet-700 dark:bg-violet-400/10 dark:text-violet-300',
+};
+
+export function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
+      {status}
+    </span>
+  );
+}
+
+const CHANNEL_STYLES: Record<string, string> = {
+  email: 'bg-blue-100 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300',
+  sms: 'bg-green-100 text-green-700 dark:bg-green-400/10 dark:text-green-300',
+  whatsapp: 'bg-teal-100 text-teal-700 dark:bg-teal-400/10 dark:text-teal-300',
+  rcs: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-400/10 dark:text-fuchsia-300',
+};
+
+export function ChannelBadge({ channel }: { channel: string }) {
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${CHANNEL_STYLES[channel] || CHANNEL_STYLES.email}`}>
+      {channel}
+    </span>
+  );
+}
+
+export function StatCard({
+  label,
+  value,
+  icon,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  icon?: ReactNode;
+  hint?: string;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="text-3xl font-semibold text-slate-900 dark:text-slate-50 mt-2">{value}</p>
+          {hint && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{hint}</p>}
+        </div>
+        {icon && (
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            {icon}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+  return (
+    <Card className="p-12 text-center">
+      <p className="text-base font-medium text-slate-700 dark:text-slate-200">{title}</p>
+      {description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    </Card>
+  );
+}
+
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 ${props.className || ''}`}
+    />
+  );
+}
+
+export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={`w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 ${props.className || ''}`}
+    />
+  );
+}
+
+export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 ${props.className || ''}`}
+    />
+  );
+}
+
+export function Label({ children }: { children: ReactNode }) {
+  return <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{children}</label>;
+}

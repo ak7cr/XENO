@@ -1,13 +1,13 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
 // Initialize SQLite database
-const dbPath = process.env.NODE_ENV === 'production' 
-  ? '/tmp/crm.db' 
+const dbPath = process.env.NODE_ENV === 'production'
+  ? '/tmp/crm.db'
   : path.join(process.cwd(), 'data', 'crm.db');
 
 // Create data directory if it doesn't exist
-const fs = require('fs');
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { Segment, Customer } from '@/lib/types';
+import { Segment } from '@/lib/types';
 import { randomUUID } from 'crypto';
+import { buildSegmentQuery } from '@/lib/segments';
 
 // AI-powered segment creation based on criteria
 export async function GET(request: NextRequest) {
@@ -17,10 +18,15 @@ export async function GET(request: NextRequest) {
     const countResult = db.prepare('SELECT COUNT(*) as count FROM segments').get() as { count: number };
 
     return NextResponse.json({
-      data: segments.map(s => ({
-        ...s,
-        criteria: typeof s.criteria === 'string' ? JSON.parse(s.criteria) : s.criteria,
-      })),
+      data: segments.map(s => {
+        const criteria = typeof s.criteria === 'string' ? JSON.parse(s.criteria) : s.criteria;
+        return {
+          ...s,
+          criteria,
+          // Recompute on every read so counts stay accurate as customers/orders change
+          customer_count: countMatchingCustomers(criteria),
+        };
+      }),
       total: countResult.count,
       limit,
       offset,
@@ -29,6 +35,11 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching segments:', error);
     return NextResponse.json({ error: 'Failed to fetch segments' }, { status: 500 });
   }
+}
+
+function countMatchingCustomers(criteria: ReturnType<typeof JSON.parse>) {
+  const { query, params } = buildSegmentQuery(criteria);
+  return (db.prepare(query).all(...params) as unknown[]).length;
 }
 
 export async function POST(request: NextRequest) {
@@ -47,7 +58,7 @@ export async function POST(request: NextRequest) {
     const { query, params } = buildSegmentQuery(criteria);
 
     // Count matching customers
-    const countResult = db.prepare(query).all(...params) as any[];
+    const countResult = db.prepare(query).all(...params) as unknown[];
     const customer_count = countResult.length;
 
     if (customer_count === 0) {
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ...segment,
-        criteria: JSON.parse(segment.criteria),
+        criteria: JSON.parse(segment.criteria as unknown as string),
       },
       { status: 201 }
     );
@@ -77,52 +88,4 @@ export async function POST(request: NextRequest) {
     console.error('Error creating segment:', error);
     return NextResponse.json({ error: 'Failed to create segment' }, { status: 500 });
   }
-}
-
-// Helper function to build SQL query from criteria
-function buildSegmentQuery(criteria: any) {
-  let query = 'SELECT * FROM customers WHERE 1=1';
-  const params: any[] = [];
-
-  // Tier filter
-  if (criteria.tier && criteria.tier.length > 0) {
-    const placeholders = criteria.tier.map(() => '?').join(',');
-    query += ` AND tier IN (${placeholders})`;
-    params.push(...criteria.tier);
-  }
-
-  // Minimum spend filter
-  if (criteria.minSpend !== undefined) {
-    query += ' AND total_spend >= ?';
-    params.push(criteria.minSpend);
-  }
-
-  // Maximum spend filter
-  if (criteria.maxSpend !== undefined) {
-    query += ' AND total_spend <= ?';
-    params.push(criteria.maxSpend);
-  }
-
-  // Days since last purchase
-  if (criteria.daysSinceLastPurchase !== undefined) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - criteria.daysSinceLastPurchase);
-    query += ' AND last_purchase_date < ?';
-    params.push(cutoffDate.toISOString());
-  }
-
-  // Never purchased (inactive)
-  if (criteria.neverPurchased === true) {
-    query += ' AND last_purchase_date IS NULL';
-  }
-
-  // Active (purchased recently)
-  if (criteria.active === true) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30);
-    query += ' AND last_purchase_date >= ?';
-    params.push(cutoffDate.toISOString());
-  }
-
-  return { query, params };
 }

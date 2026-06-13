@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     let query = 'SELECT * FROM orders';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (customer_id) {
       query += ' WHERE customer_id = ?';
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const orders = db.prepare(query).all(...params) as Order[];
 
     let countQuery = 'SELECT COUNT(*) as count FROM orders';
-    const countParams: any[] = [];
+    const countParams: string[] = [];
     if (customer_id) {
       countQuery += ' WHERE customer_id = ?';
       countParams.push(customer_id);
@@ -75,10 +75,10 @@ export async function POST(request: NextRequest) {
     ).run(amount, orderDate, customer_id);
 
     // Update customer tier based on spend
-    const updatedCustomer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customer_id);
+    const updatedCustomer = db.prepare('SELECT * FROM customers WHERE id = ?').get(customer_id) as { total_spend: number };
     let tier = 'bronze';
-    if ((updatedCustomer as any).total_spend >= 1000) tier = 'gold';
-    else if ((updatedCustomer as any).total_spend >= 500) tier = 'silver';
+    if (updatedCustomer.total_spend >= 1000) tier = 'gold';
+    else if (updatedCustomer.total_spend >= 500) tier = 'silver';
 
     db.prepare('UPDATE customers SET tier = ? WHERE id = ?').run(tier, customer_id);
 
