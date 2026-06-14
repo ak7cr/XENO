@@ -32,19 +32,28 @@ export async function POST(request: NextRequest) {
     if (type === 'message') {
       const { segment_name, brand_name, product } = context;
       const generated = ai ? await generateMessagesWithGemini(ai, segment_name, brand_name, product) : null;
-      return NextResponse.json({ suggestions: generated ?? generateMessageSuggestions(segment_name) });
+      return NextResponse.json({
+        suggestions: generated ?? generateMessageSuggestions(segment_name),
+        source: generated ? 'ai' : 'heuristic',
+      });
     }
 
     if (type === 'channel') {
       const { audience_type, message_length } = context;
       const recommended = ai ? await recommendChannelWithGemini(ai, audience_type, message_length) : null;
-      return NextResponse.json({ recommendation: recommended ?? recommendChannel(audience_type, message_length) });
+      return NextResponse.json({
+        recommendation: recommended ?? recommendChannel(audience_type, message_length),
+        source: recommended ? 'ai' : 'heuristic',
+      });
     }
 
     if (type === 'segment') {
       const { goal } = context;
       const suggested = ai ? await suggestSegmentWithGemini(ai, goal) : null;
-      return NextResponse.json({ suggestions: suggested ?? sugmentSuggestions(goal) });
+      return NextResponse.json({
+        suggestions: suggested ?? sugmentSuggestions(goal),
+        source: suggested ? 'ai' : 'heuristic',
+      });
     }
 
     return NextResponse.json({ error: 'Unknown type' }, { status: 400 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Card, EmptyState, Input, Label, PageHeader } from '@/components/ui';
+import { AiModeBadge, Button, Card, EmptyState, Input, Label, PageHeader } from '@/components/ui';
 import { PlusIcon, SparkleIcon, TargetIcon } from '@/components/icons';
 
 interface Criteria {
@@ -55,6 +55,7 @@ export default function SegmentsPage() {
   const [aiGoal, setAiGoal] = useState(AI_GOALS[0].value);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiNote, setAiNote] = useState('');
+  const [aiSource, setAiSource] = useState<'ai' | 'heuristic' | null>(null);
 
   const loadSegments = async () => {
     try {
@@ -121,6 +122,7 @@ export default function SegmentsPage() {
         setName(suggestion.name);
         setCriteria({ tier: [], ...suggestion.criteria });
         setAiNote(`AI suggested "${suggestion.name}" for this goal — tweak the criteria below if needed.`);
+        setAiSource(data.source);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -206,8 +208,9 @@ export default function SegmentsPage() {
       {showForm && (
         <Card className="p-6 mb-6">
           {aiNote && (
-            <div className="mb-4 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-xs flex items-center gap-2">
+            <div className="mb-4 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-xs flex items-center gap-2 flex-wrap">
               <SparkleIcon className="w-3.5 h-3.5" /> {aiNote}
+              {aiSource && <AiModeBadge source={aiSource} />}
             </div>
           )}
           <form onSubmit={handleCreateSegment} className="space-y-5">

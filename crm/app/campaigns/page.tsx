@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Card, ChannelBadge, EmptyState, Input, Label, PageHeader, Select, StatusBadge, Textarea } from '@/components/ui';
+import { AiModeBadge, Button, Card, ChannelBadge, EmptyState, Input, Label, PageHeader, Select, StatusBadge, Textarea } from '@/components/ui';
 import { PlusIcon, SparkleIcon } from '@/components/icons';
 import { SegmentCriteria } from '@/lib/segments';
 
@@ -55,6 +55,8 @@ export default function CampaignsPage() {
   const [formError, setFormError] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState<'message' | 'channel' | null>(null);
+  const [aiSource, setAiSource] = useState<'ai' | 'heuristic' | null>(null);
+  const [channelSource, setChannelSource] = useState<'ai' | 'heuristic' | null>(null);
   const [form, setForm] = useState({ segment_id: '', name: '', message_template: '', channel: 'email' });
 
   const loadCampaigns = async () => {
@@ -109,6 +111,7 @@ export default function CampaignsPage() {
           s.replace(/\{brand\}/g, 'Xeno').replace(/\{product\}/g, 'your favourites')
         );
         setAiSuggestions(filled);
+        setAiSource(data.source);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -129,6 +132,7 @@ export default function CampaignsPage() {
       if (res.ok) {
         const data = await res.json();
         setForm(prev => ({ ...prev, channel: data.recommendation }));
+        setChannelSource(data.source);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -235,6 +239,11 @@ export default function CampaignsPage() {
                 />
                 {aiSuggestions.length > 0 && (
                   <div className="mt-2 space-y-1.5">
+                    {aiSource && (
+                      <div className="flex justify-end">
+                        <AiModeBadge source={aiSource} />
+                      </div>
+                    )}
                     {aiSuggestions.map((s, i) => (
                       <button
                         type="button"
@@ -251,7 +260,10 @@ export default function CampaignsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
                 <div>
-                  <Label>Channel</Label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label>Channel</Label>
+                    {channelSource && <AiModeBadge source={channelSource} />}
+                  </div>
                   <Select value={form.channel} onChange={e => setForm({ ...form, channel: e.target.value })}>
                     {CHANNELS.map(c => (
                       <option key={c.value} value={c.value}>{c.label}</option>
