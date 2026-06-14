@@ -62,16 +62,18 @@ AI is wired into the product at the two points marketers actually get stuck:
   based on the drafted message.
 
 The suggestion logic lives behind a single `POST /api/ai/suggest` endpoint
-(`type: segment | message | channel`). It currently runs on deterministic,
-rule-based heuristics so the demo works with zero API keys and zero latency —
-the endpoint is the seam where a real LLM call (the `openai`/Anthropic SDKs)
-would slot in without changing the UI.
+(`type: segment | message | channel`). When `GEMINI_API_KEY` is set, it calls
+**Gemini** (`gemini-2.5-flash`, via `@google/genai`) with a JSON response
+schema for each suggestion type. Without a key — or if the Gemini call fails
+— it falls back to deterministic, rule-based heuristics, so the demo always
+works with zero API keys and zero latency.
 
 ## Tech stack
 
 - **Frontend/Backend**: Next.js (App Router) + React + TypeScript + Tailwind CSS v4
 - **Database**: SQLite via `better-sqlite3`
 - **Channel service**: standalone Node.js/Express app
+- **AI**: Google Gemini via `@google/genai`, with rule-based fallback
 - **Dark mode**: class-based Tailwind dark variant, toggle persisted to `localStorage`
 
 ## Project structure
@@ -125,8 +127,8 @@ purely as a cache of the value at creation time.
 # Terminal 1 — CRM
 cd crm
 npm install
-echo "CHANNEL_SERVICE_URL=http://localhost:3001" > .env.local
-echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> .env.local
+cp .env.example .env.local
+# Optionally set GEMINI_API_KEY in .env.local to enable real AI suggestions
 npm run dev
 
 # Terminal 2 — Channel service
@@ -151,9 +153,10 @@ dashboard to seed a sample shopper base.
 - **Callbacks are idempotent updates keyed by `communication_id`** — safe to
   retry. A production version would add callback signature verification and
   a dead-letter path for repeated failures.
-- **AI suggestions are rule-based** by design for this scope (no API keys,
-  instant, deterministic for demo purposes), with the suggestion logic
-  isolated behind one endpoint so it can be swapped for an LLM call.
+- **AI suggestions use Gemini when configured**, with a deterministic
+  rule-based fallback so the demo works instantly with zero API keys. The
+  suggestion logic is isolated behind one endpoint (`/api/ai/suggest`), so
+  swapping models or providers doesn't touch the UI.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment options and production
 database notes.
